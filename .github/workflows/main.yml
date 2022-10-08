@@ -22,7 +22,17 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
+      
+      - name: Use Node 12
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12.x
+
+      - name: Install Railway
+        run: npm i -g @railway/cli
 
       # Runs a single command using the runners shell
-      - name: Deploy to render using the deploy hook URL
-        run: curl ${{ secrets.RENDER_DEPLOY_HOOK }}
+      - name: Deploy to railway
+        run: railway up
+        env: 
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
