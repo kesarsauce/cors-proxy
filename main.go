@@ -56,7 +56,7 @@ func newServer() *inventoryServer {
 
 func main() {
     flag.Parse()
-    lis, err := net.Listen("tcp", "localhost:50051")
+    lis, err := net.Listen("tcp", "0.0.0.0:50051")
     if err != nil {
     log.Fatalf("failed to listen: %v", err)
     }
