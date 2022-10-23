@@ -1,9 +1,12 @@
 package main
 
 import (
-    "net/http"
-
-    "github.com/gin-gonic/gin"
+	"context"
+	"flag"
+	pb "kesarsauce/cors-proxy/proto"
+	"log"
+	"net"
+	"google.golang.org/grpc"
 )
 
 // album represents data about a record album.
@@ -11,7 +14,7 @@ type album struct {
     ID     string  `json:"id"`
     Title  string  `json:"title"`
     Artist string  `json:"artist"`
-    Price  float64 `json:"price"`
+    Price  float32 `json:"price"`
 }
 
 // albums slice to seed record album data.
@@ -24,15 +27,46 @@ var albums = []album{
     {ID: "6", Title: "Bohemian Rhapsody", Artist: "Queen", Price: 69.99},
 }
 
-func main() {
-    router := gin.Default()
-    router.GET("/albums", getAlbums)
-    router.GET("/albums/:id", getAlbumByID)
-    router.POST("/albums", postAlbums)
-
-    router.Run("0.0.0.0:8080")
+type inventoryServer struct {
+	pb.UnimplementedInventoryServer
 }
 
+func (s *inventoryServer) GetAlbumList(ctx context.Context, req *pb.GetAlbumListRequest) (*pb.GetAlbumListResponse, error) {
+    albumsResp := []*pb.Album{}
+    for _, album := range albums {
+        albumsResp = append(albumsResp, &pb.Album{Id: album.ID, Title: album.Title, Artist: album.Artist, Price: album.Price})
+    }
+    return &pb.GetAlbumListResponse{Albums: albumsResp}, nil
+}
+
+func (s *inventoryServer) GetAlbumById(ctx context.Context, req *pb.GetAlbumByIdRequest) (*pb.GetAlbumByIdResponse, error) {
+    id := req.GetId()
+    for _, album := range albums {
+        if album.ID == id {
+            return &pb.GetAlbumByIdResponse{Album: &pb.Album{Id: album.ID, Title: album.Title, Artist: album.Artist, Price: album.Price}}, nil
+        }
+    }
+    return &pb.GetAlbumByIdResponse{}, nil
+}
+
+func newServer() *inventoryServer {
+    s := &inventoryServer{}
+    return s
+}
+
+func main() {
+    flag.Parse()
+    lis, err := net.Listen("tcp", "localhost:50051")
+    if err != nil {
+    log.Fatalf("failed to listen: %v", err)
+    }
+    var opts []grpc.ServerOption
+    grpcServer := grpc.NewServer(opts...)
+    
+    pb.RegisterInventoryServer(grpcServer, newServer())
+    grpcServer.Serve(lis)
+}
+/*
 // getAlbums responds with the list of all albums as JSON.
 func getAlbums(c *gin.Context) {
     c.IndentedJSON(http.StatusOK, albums)
@@ -68,3 +102,4 @@ func getAlbumByID(c *gin.Context) {
     }
     c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
 }
+*/
