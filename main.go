@@ -6,7 +6,9 @@ import (
 	pb "kesarsauce/cors-proxy/proto"
 	"log"
 	"net"
+
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 // album represents data about a record album.
@@ -64,6 +66,7 @@ func main() {
     grpcServer := grpc.NewServer(opts...)
     
     pb.RegisterInventoryServer(grpcServer, newServer())
+    reflection.Register(grpcServer)
     grpcServer.Serve(lis)
 }
 /*
