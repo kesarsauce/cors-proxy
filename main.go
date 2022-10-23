@@ -3,10 +3,9 @@ package main
 import (
 	"context"
 	"flag"
-	pb "kesarsauce/cors-proxy/proto"
+	pb "kesarsauce/music-albums-server/proto"
 	"log"
 	"net"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
