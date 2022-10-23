@@ -6,6 +6,6 @@ COPY . $GOPATH/src/kesarsauce/cors-proxy
 
 RUN go build -o /cors-proxy
 
-EXPOSE 8080
+EXPOSE 50051
 
 CMD [ "/cors-proxy" ]
