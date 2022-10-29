@@ -6,6 +6,6 @@ COPY . $GOPATH/src/kesarsauce/music-albums-server
 
 RUN go build -o /music-albums-server
 
-EXPOSE 50051
+EXPOSE 8080
 
 CMD [ "/music-albums-server" ]
