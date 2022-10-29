@@ -2,12 +2,8 @@ package main
 
 import (
 	"context"
-	"flag"
-	pb "kesarsauce/music-albums-server/proto"
-	"log"
-	"net"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	pb "kesarsauce/music-albums-server/proto/albums"
+	"net/http"
 )
 
 // album represents data about a record album.
@@ -29,7 +25,6 @@ var albums = []album{
 }
 
 type inventoryServer struct {
-	pb.UnimplementedInventoryServer
 }
 
 func (s *inventoryServer) GetAlbumList(ctx context.Context, req *pb.GetAlbumListRequest) (*pb.GetAlbumListResponse, error) {
@@ -56,17 +51,10 @@ func newServer() *inventoryServer {
 }
 
 func main() {
-    flag.Parse()
-    lis, err := net.Listen("tcp", "0.0.0.0:50051")
-    if err != nil {
-    log.Fatalf("failed to listen: %v", err)
-    }
-    var opts []grpc.ServerOption
-    grpcServer := grpc.NewServer(opts...)
-    
-    pb.RegisterInventoryServer(grpcServer, newServer())
-    reflection.Register(grpcServer)
-    grpcServer.Serve(lis)
+    twirpHandler := pb.NewInventoryServer(newServer())
+    mux := http.NewServeMux()
+    mux.Handle(twirpHandler.PathPrefix(), twirpHandler)
+    http.ListenAndServe(":8080", mux)
 }
 /*
 // getAlbums responds with the list of all albums as JSON.
