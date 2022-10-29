@@ -15,8 +15,11 @@ message GetAlbumListResponse { repeated Album albums = 1; }
 message GetAlbumByIdRequest { string id = 1; }
 message GetAlbumByIdResponse { Album album = 1; }
 
+message AddAlbumRequest { Album album = 1; }
+message AddAlbumResponse { bool success = 1; }
 
 service Inventory {
     rpc GetAlbumList(GetAlbumListRequest) returns (GetAlbumListResponse) {}
     rpc GetAlbumById(GetAlbumByIdRequest) returns (GetAlbumByIdResponse) {}
+    rpc AddAlbum(AddAlbumRequest) returns (AddAlbumResponse) {}
 }

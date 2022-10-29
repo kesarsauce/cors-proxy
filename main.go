@@ -2,94 +2,82 @@ package main
 
 import (
 	"context"
+	"fmt"
 	pb "kesarsauce/music-albums-server/proto/albums"
 	"net/http"
+	"os"
+
+	"github.com/twitchtv/twirp"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 // album represents data about a record album.
-type album struct {
-    ID     string  `json:"id"`
-    Title  string  `json:"title"`
-    Artist string  `json:"artist"`
-    Price  float32 `json:"price"`
+type Album struct {
+	gorm.Model
+	ID     string  `json:"id"`
+	Title  string  `json:"title"`
+	Artist string  `json:"artist"`
+	Price  float32 `json:"price"`
 }
 
-// albums slice to seed record album data.
-var albums = []album{
-    {ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 57.99},
-    {ID: "2", Title: "Queen", Artist: "Gerry Mulligan", Price: 17.99},
-    {ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
-    {ID: "4", Title: "Hocus Pocus", Artist: "Focus", Price: 49.99},
-    {ID: "5", Title: "Sylvia", Artist: "Focus", Price: 89.99},
-    {ID: "6", Title: "Bohemian Rhapsody", Artist: "Queen", Price: 69.99},
-}
+var DB *gorm.DB
 
 type inventoryServer struct {
 }
 
 func (s *inventoryServer) GetAlbumList(ctx context.Context, req *pb.GetAlbumListRequest) (*pb.GetAlbumListResponse, error) {
-    albumsResp := []*pb.Album{}
-    for _, album := range albums {
-        albumsResp = append(albumsResp, &pb.Album{Id: album.ID, Title: album.Title, Artist: album.Artist, Price: album.Price})
-    }
-    return &pb.GetAlbumListResponse{Albums: albumsResp}, nil
+	var albumsResp []*pb.Album
+	result := DB.Find(&albumsResp)
+    if result.Error != nil {
+		return &pb.GetAlbumListResponse{}, twirp.NotFound.Error("Albums not found")
+	}
+	return &pb.GetAlbumListResponse{Albums: albumsResp}, nil
 }
 
 func (s *inventoryServer) GetAlbumById(ctx context.Context, req *pb.GetAlbumByIdRequest) (*pb.GetAlbumByIdResponse, error) {
-    id := req.GetId()
-    for _, album := range albums {
-        if album.ID == id {
-            return &pb.GetAlbumByIdResponse{Album: &pb.Album{Id: album.ID, Title: album.Title, Artist: album.Artist, Price: album.Price}}, nil
-        }
-    }
-    return &pb.GetAlbumByIdResponse{}, nil
+	id := req.GetId()
+	var album *pb.Album
+	result := DB.First(&album, id)
+	if result.Error != nil {
+		return &pb.GetAlbumByIdResponse{}, twirp.NotFound.Error("Album not found")
+	}
+	return &pb.GetAlbumByIdResponse{Album: album}, nil
+}
+
+func (s *inventoryServer) AddAlbum(ctx context.Context, req *pb.AddAlbumRequest) (*pb.AddAlbumResponse, error) {
+	album := req.GetAlbum()
+	result := DB.Create(album)
+	if result.Error != nil {
+		return &pb.AddAlbumResponse{Success: false}, nil
+	}
+	return &pb.AddAlbumResponse{Success: true}, nil
 }
 
 func newServer() *inventoryServer {
-    s := &inventoryServer{}
-    return s
+	s := &inventoryServer{}
+	return s
 }
 
 func main() {
-    twirpHandler := pb.NewInventoryServer(newServer())
-    mux := http.NewServeMux()
-    mux.Handle(twirpHandler.PathPrefix(), twirpHandler)
-    http.ListenAndServe(":8080", mux)
+	dsn := fmt.Sprintf(
+        "host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai",
+        os.Getenv("PGSQL_HOST"),
+        os.Getenv("PGSQL_USER"),
+        os.Getenv("PGSQL_PASS"),
+        os.Getenv("PGSQL_DB"),
+        os.Getenv("PGSQL_PORT"),
+    )
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
+	db.AutoMigrate(&Album{})
+
+	DB = db
+
+	twirpHandler := pb.NewInventoryServer(newServer())
+	mux := http.NewServeMux()
+	mux.Handle(twirpHandler.PathPrefix(), twirpHandler)
+	http.ListenAndServe(":8080", mux)
 }
-/*
-// getAlbums responds with the list of all albums as JSON.
-func getAlbums(c *gin.Context) {
-    c.IndentedJSON(http.StatusOK, albums)
-}
-
-// postAlbums adds an album from JSON received in the request body.
-func postAlbums(c *gin.Context) {
-    var newAlbum album
-
-    // Call BindJSON to bind the received JSON to
-    // newAlbum.
-    if err := c.BindJSON(&newAlbum); err != nil {
-        return
-    }
-
-    // Add the new album to the slice.
-    albums = append(albums, newAlbum)
-    c.IndentedJSON(http.StatusCreated, newAlbum)
-}
-
-// getAlbumByID locates the album whose ID value matches the id
-// parameter sent by the client, then returns that album as a response.
-func getAlbumByID(c *gin.Context) {
-    id := c.Param("id")
-
-    // Loop through the list of albums, looking for
-    // an album whose ID value matches the parameter.
-    for _, a := range albums {
-        if a.ID == id {
-            c.IndentedJSON(http.StatusOK, a)
-            return
-        }
-    }
-    c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
-}
-*/
